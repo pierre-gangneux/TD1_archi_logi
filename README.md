@@ -1,3 +1,7 @@
 # TD 1 - Architecture logicielle
 
-Réalisé par Baptiste Mignan
+installation + commandes 
+
+détail des fonctionnalité 
+
+présentation organisation du code

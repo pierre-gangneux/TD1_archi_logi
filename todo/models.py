@@ -29,6 +29,8 @@ class Questionnaire(db.Model):
     
     def get_questions(self):
         return Question.query.filter(Question.questionnaire_id == self.id).all()
+    
+    
 
 def getQuestionnaires():
     return [questionnaire.to_json() for questionnaire in Questionnaire.query.all()]
@@ -70,7 +72,7 @@ class Question(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     title = db.Column(db.String(120))
     questionType = db.Column(db.String(120))
-    questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'))
+    questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'), primary_key = True)
     questionnaire = db.relationship("Questionnaire", backref=db.backref("questions", lazy="dynamic"))
 
     def __init__(self, title, questionType, questionnaire_id):
@@ -96,28 +98,49 @@ class Question(db.Model):
     def set_questionnaire_id(self, id):
         self.questionnaire_id = id
 
+    __mapper_args__ = {
+        "polymorphic_identity": "question",
+        "with_polymorphic": "*",
+        "polymorphic_on": questionType,
+    }
+
+class QuestionSimple(Question):
+    id = db.Column(db.Integer, db.ForeignKey('question.id'), primary_key = True)
+    def __init__(self, title, questionType, questionnaire_id):
+        super().__init__(title, questionType, questionnaire_id)
+    
+    __mapper_args__ = {
+        "polymorphic_identity": "simple",
+     
+    }
+
+class QuestionMultiple(Question):
+    id = db.Column(db.Integer, db.ForeignKey('question.id'), primary_key = True)
+    def __init__(self, title, questionType, questionnaire_id):
+        super().__init__(title, questionType, questionnaire_id)
+
+    __mapper_args__ = {
+        "polymorphic_identity": "multiple",
+    }
+
+
 def get_questions_questionnaire(id_questionnaire):
-    try:
-        return [question.to_json() for question in Question.query.filter(Question.questionnaire_id == id_questionnaire).all()]
-    except:
-        return None
+    return [question.to_json() for question in Question.query.filter(Question.questionnaire_id == id_questionnaire).all()]
 
-def get_questions():
-    return [question.to_json() for question in Question.query.all()]
+def get_questions(id_questionnaire):
+    return [question.to_json() for question in Question.query.filter(Question.questionnaire_id == id_questionnaire).all()]
 
-def get_question(id_question):
-    try:
-        return Question.query.filter(Question.id == id_question).first().to_json()
-    except:
-        return None
+def get_question(id_questionnaire, id_question):
+    return Question.query.filter((Question.id == id_question) & (Question.questionnaire_id == id_questionnaire)).first().to_json()
 
-def get_next_id_Question():
-    max_id = db.session.query(func.max(Question.id)).scalar()
+
+def get_next_id_Question(id_questionnaire):
+    max_id = Question.query.filter((Question.questionnaire_id == id_questionnaire) & (func.max(Question.id))).scalar()
     next_id = (max_id or 0) + 1
     return next_id
 
-def delete_question_row(id_question):
-    question = Question.query.filter(Question.id == int(id_question)).first()
+def delete_question_row(id_questionnaire, id_question):
+    question = Question.query.filter((Question.id == id_question) & (Question.questionnaire_id == id_questionnaire)).first()
     if question is None:
         return None
     db.session.delete(question)
@@ -125,35 +148,15 @@ def delete_question_row(id_question):
     return question.to_json()
 
 def edit_question_row(json):
-    question = Question.query.filter(Question.id == int(json["question_id"])).first()
+
+    question = Question.query.filter((Question.id == int(json["question_id"])) & (Question.questionnaire_id == int(json["id_questionnaire"]))).first()
     if question is None:
         return None
     if "title" in json:
         question.set_title(json["title"])
     if "type" in json:
         question.set_type(json["type"])
-    if "questionnaire_id" in json:
-        question.set_questionnaire_id(json["questionnaire_id"])
+    #if "questionnaire_id" in json:
+    #    question.set_questionnaire_id(json["questionnaire_id"])
     db.session.commit()
     return question.to_json()
-
-tasks=[
-{
-'id':1,
-'title':'Courses',
-'description':'Salade,Oignons,Pommes,Clementines',
-'done':True
-},
-{
-'id':2,
-'title':'ApprendreREST',
-'description':'Apprendremoncoursetcomprendrelesexemples',
-'done':False
-},
-{
-'id':3,
-'title':'ApprendreAjax',
-'description':'RevoirlesexemplesetecrireunclientRESTJSavecAjax',
-'done':False
-}
-]

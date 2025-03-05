@@ -1,6 +1,6 @@
 from flask import jsonify , abort , make_response , request, Flask, url_for, redirect
 from .app import app, db
-from .models import Questionnaire, Question, getQuestionnaires, get_questionnaire, get_questions_questionnaire, get_questions, get_question, delete_question_row, delete_questionnaire_row, edit_question_row, edit_questionnaire_row, tasks
+from .models import QuestionMultiple, QuestionSimple, Questionnaire, Question, getQuestionnaires, get_questionnaire, get_questions_questionnaire, get_questions, get_question, delete_question_row, delete_questionnaire_row, edit_question_row, edit_questionnaire_row
 
 
 @app.route("/")
@@ -18,10 +18,10 @@ def questionnaires():
     """
     questionnaires = getQuestionnaires()
     for questionnaire in questionnaires:
-        questionnaire["uri"] = "/api/questionnaire/"+str(questionnaire["id"])+"/questions"
+        questionnaire["uri"] = "/api/questionnaires/"+str(questionnaire["id"])+"/questions"
     return jsonify(questionnaires), 200
 
-@app.route("/api/questionnaire/<int:questionnaire_id>", methods = ["GET"])
+@app.route("/api/questionnaires/<int:questionnaire_id>", methods = ["GET"])
 def questionnaire(questionnaire_id:int):
     """Permet obtenir un questionnaire en renseignant son id avec la méthode GET
 
@@ -35,9 +35,10 @@ def questionnaire(questionnaire_id:int):
     if questionnaire is None:
         # Le questionnaire n'existe pas
         abort(404)
+    
     return jsonify(questionnaire), 200
 
-@app.route("/api/questionnaire/<int:questionnaire_id>/questions", methods = ["GET"])
+@app.route("/api/questionnaires/<int:questionnaire_id>/questions", methods = ["GET"])
 def questionnaire_questions(questionnaire_id:int):
     """Permet d'obtenir les questions d'un questionnaire avec la méthode GET
 
@@ -53,12 +54,12 @@ def questionnaire_questions(questionnaire_id:int):
         abort(404)
     return jsonify(questionnaire), 200
 
-@app.route("/api/questions", methods = ['GET'])
-def questions():
-    return jsonify(get_questions()), 200
+@app.route("/api/questionnaires/<int:id_questionnaires>/questions", methods = ['GET'])
+def questions(id_questionnaires):
+    return jsonify(get_questions(id_questionnaires)), 200
 
-@app.route("/api/question/<int:id_question>", methods = ['GET'])
-def question(id_question:int):
+@app.route("/api/questionnaires/<int:id_questionnaires>/questions/<int:id_question>", methods = ['GET'])
+def question(id_question:int, id_questionnaires:int):
     """Permet d'obtenir le json d'un question avec la méthode GET
 
     Args:
@@ -67,7 +68,7 @@ def question(id_question:int):
     Returns:
         json: la question
     """
-    question = get_question(id_question)
+    question = get_question(id_questionnaires, id_question)
     if question is None:
         # La question n'existe pas
         abort(404)
@@ -90,12 +91,12 @@ def create_questionnaires():
     db.session.add(questionnaire)
     db.session.commit()
     questionnaire = questionnaire.to_json()
-    questionnaire["uri"] = "/api/questionnaire/"+str(questionnaire["id"])+"/questions"
+    questionnaire["uri"] = "/api/questionnaires/"+str(questionnaire["id"])+"/questions"
     return jsonify(questionnaire), 201
 
-# curl -i -H "Content-Type: application/json" -X POST -d '{"title":"testQ", "type":"text", "questionnaire_id":1}' http://localhost:5000/api/questions
-@app.route("/api/questions", methods = ['POST'])
-def create_question():
+
+@app.route("/api/questionnaires/<int:id_questionnaires>/questions", methods = ['POST'])
+def create_question(id_questionnaires):
     """Permet de créer une question avec la méthode POST
     Nécessite un titre, un type et l'id d'un questionnaire pour créer la question
 
@@ -106,11 +107,16 @@ def create_question():
         not request.json
         or not 'title' in request.json 
         or not 'type' in request.json 
-        or not 'questionnaire_id' in request.json 
-        or get_questionnaire(request.json["questionnaire_id"]) is None
     ):
         abort(400)
-    question = Question(request.json["title"], request.json["type"], request.json["questionnaire_id"])
+    
+    match request.json["type"]:
+        case "multiple":
+            question = QuestionMultiple(request.json["title"], request.json["type"], id_questionnaires)
+        case _:
+            question = QuestionSimple(request.json["title"], request.json["type"], id_questionnaires)
+
+
     db.session.add(question)
     db.session.commit()
     return jsonify(question.to_json()), 201
@@ -130,7 +136,7 @@ def edit_questionnaire():
     questionnaire = edit_questionnaire_row(request.json)
     if questionnaire is None:
         abort(404)
-    questionnaire["uri"] = "/api/questionnaire/"+str(questionnaire["id"])+"/questions"
+    questionnaire["uri"] = "/api/questionnaires/"+str(questionnaire["id"])+"/questions"
     return jsonify(questionnaire), 200
 
 # curl -i -H "Content-Type: application/json" -X PUT -d '{"question_id":1, "title":"testQ", "type":"text", "questionnaire_id":1}' http://localhost:5000/api/questions
