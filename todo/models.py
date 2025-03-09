@@ -76,14 +76,16 @@ class Question(db.Model):
     questionnaire = db.relationship("Questionnaire", backref=db.backref("questions", lazy="dynamic"))
 
     def __init__(self, title, questionType, questionnaire_id):
-        self.id = get_next_id_Question()
+        self.questionnaire_id = questionnaire_id
+        self.id = get_next_id_Question(self.questionnaire_id)
         self.title = title
         self.questionType = questionType
-        self.questionnaire_id = questionnaire_id
+        
 
     def to_json(self):
         json = {
             'id':self.id,
+            'questionnaire_id':self.questionnaire_id,
             'title':self.title,
             'type':self.questionType
         }
@@ -135,9 +137,13 @@ def get_question(id_questionnaire, id_question):
 
 
 def get_next_id_Question(id_questionnaire):
-    max_id = Question.query.filter((Question.questionnaire_id == id_questionnaire) & (func.max(Question.id))).scalar()
-    next_id = (max_id or 0) + 1
-    return next_id
+    max_id = (
+        db.session.query(func.max(Question.id))  # Correct : utilise max() dans SELECT
+        .filter(Question.questionnaire_id == id_questionnaire)  # Applique le filtre ici
+        .scalar()
+    )
+    return (max_id or 0) + 1  # Si max_id est None, retourne 1
+
 
 def delete_question_row(id_questionnaire, id_question):
     question = Question.query.filter((Question.id == id_question) & (Question.questionnaire_id == id_questionnaire)).first()
@@ -147,9 +153,9 @@ def delete_question_row(id_questionnaire, id_question):
     db.session.commit()
     return question.to_json()
 
-def edit_question_row(json):
+def edit_question_row(id_questionnaire, json):
 
-    question = Question.query.filter((Question.id == int(json["question_id"])) & (Question.questionnaire_id == int(json["id_questionnaire"]))).first()
+    question = Question.query.filter((Question.id == int(json["question_id"])) & (Question.questionnaire_id == id_questionnaire)).first()
     if question is None:
         return None
     if "title" in json:

@@ -54,14 +54,22 @@ class FormQuestion extends HTMLLIElement {
         typeQuestion.textContent = 'Type';
         type.append(typeQuestion);
 
-        // Création de l'input du type de la question
-        let typeQuestionInput = document.createElement('input');
-        typeQuestionInput.id = 'typeQuestion';
-        type.append(typeQuestionInput);
+        // Création du selecteur du type de la question
+        let typeQuestionSelect = document.createElement('select');
+        typeQuestionSelect.id = 'typeQuestion';
+        let optionSelectQuestion1 = document.createElement('option');
+        optionSelectQuestion1.value = "simple"
+        optionSelectQuestion1.textContent = "simple"
+        let optionSelectQuestion2 = document.createElement('option');
+        optionSelectQuestion2.value = "multiple"
+        optionSelectQuestion2.textContent = "multiple"
+        typeQuestionSelect.appendChild(optionSelectQuestion1)
+        typeQuestionSelect.appendChild(optionSelectQuestion2)
+        type.append(typeQuestionSelect);
 
-        typeQuestionInput.style.padding = "0.5em";
-        typeQuestionInput.style.borderRadius = "15px";
-        typeQuestionInput.style.border = "none";
+        typeQuestionSelect.style.padding = "0.5em";
+        typeQuestionSelect.style.borderRadius = "15px";
+        typeQuestionSelect.style.border = "none";
 
         // Boutons de gestion de la question
         let boutons = document.createElement('div');
@@ -71,6 +79,7 @@ class FormQuestion extends HTMLLIElement {
         // Création du bouton pour enregistrer la nouvelle question
         let saveQuestion = document.createElement('img');
         saveQuestion.src = 'img/save.png';
+        
         saveQuestion.onclick = () => this.saveNewQuestion();
         boutons.append(saveQuestion);
     }
@@ -84,8 +93,8 @@ class FormQuestion extends HTMLLIElement {
         titreQuestionInput.value = question.title;
     
         // Set de la valeur du type de la question
-        let typeQuestionInput = this.querySelector('#typeQuestion');
-        typeQuestionInput.value = question.type;
+        let typeQuestionSelect = this.querySelector('#typeQuestion');
+        typeQuestionSelect.value = question.type;
     
         // Boutons de gestion de la question
         let boutons = this.querySelector('#boutonsQuestion');
@@ -105,6 +114,8 @@ class FormQuestion extends HTMLLIElement {
     }
 
     saveNewQuestion(){
+        console.log("héoh")
+        console.log(this)
         // Récupère la valeur du title de la question
         let title = this.querySelector('#titreQuestion').value;
         // Récupère la valeur du type de la question
@@ -120,8 +131,9 @@ class FormQuestion extends HTMLLIElement {
         }
         // S'il n'y a pas d'erreurs
         else {
-            // Création de la requête permettant de modifier le questionnaire
-            fetch('http://localhost:5000/api/questions',{
+            // Création de la requête permettant de modifier la question
+            
+            fetch('http://localhost:5000/api/questionnaires/'+this.formQuestionnaire.questionnaire.id+'/questions',{
             headers: {'Content-Type': 'application/json'},
             method: 'POST',
             body: JSON.stringify({"title":title, "type":type, "questionnaire_id":this.formQuestionnaire.questionnaire.id})
@@ -171,17 +183,17 @@ class FormQuestion extends HTMLLIElement {
         // S'il y a une modification, on envoi une requête
         if (Object.keys(bodyRequest).length > 1){
             // Création de la requête permettant de modifier la question
-            fetch('http://localhost:5000/api/questions',{
+            fetch('http://localhost:5000/api/questionnaires/'+this.formQuestionnaire.questionnaire.id+'/questions',{
                 headers: {'Content-Type': 'application/json'},
                 method: 'PUT',
                 body: JSON.stringify(bodyRequest)
             })
             .then(response => {
-                if (response.ok){
+                //if (response.ok){
                     Utilitaire.successMessage('Update Success');
                     return response.json();
-                }
-                else throw new Error('Problème ajax: ' + response.status);
+                //}
+                //else throw new Error('Problème ajax: ' + response.status);
             })
             .then(async dataQuestion => {
                 // On met à jour la liste des questions du questionnaire
@@ -199,7 +211,7 @@ class FormQuestion extends HTMLLIElement {
     
     deleteQuestion(){
         // Création de la requête permettant de supprimer la question
-        fetch('http://localhost:5000/api/questions',{
+        fetch('http://localhost:5000/api/questionnaires/'+this.formQuestionnaire.questionnaire.id+'/questions',{
             headers: {'Content-Type': 'application/json'},
             method: 'DELETE',
             body: JSON.stringify({"question_id":this.question.id})
