@@ -1,5 +1,4 @@
 class QuestionnaireListe extends HTMLUListElement {
-    // Implémentation du pattern Singleton
     constructor(){
         if (QuestionnaireListe.instance) {
             return QuestionnaireListe.instance;
