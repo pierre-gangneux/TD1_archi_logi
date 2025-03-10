@@ -75,9 +75,12 @@ class Question(db.Model):
     questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'), primary_key = True)
     questionnaire = db.relationship("Questionnaire", backref=db.backref("questions", lazy="dynamic"))
 
-    def __init__(self, title, questionType, questionnaire_id):
+    def __init__(self, title, questionType, questionnaire_id, id=None):
         self.questionnaire_id = questionnaire_id
-        self.id = get_next_id_Question(self.questionnaire_id)
+        if id:
+            self.id = id
+        else:
+            self.id = get_next_id_Question(self.questionnaire_id)
         self.title = title
         self.questionType = questionType
         
@@ -95,7 +98,20 @@ class Question(db.Model):
         self.title = title
 
     def set_type(self, type):
-        self.questionType = type
+        if type in ["multiple", "simple"]:
+            if type == self.questionType:
+                return self
+            db.session.delete(self)
+            db.session.commit()
+            if type == "simple":
+                question = QuestionSimple(self.title, "simple", self.questionnaire_id, id=self.id)
+                db.session.add(question)
+                db.session.commit()
+            elif type == "multiple":
+                question = QuestionMultiple(self.title, "multiple", self.questionnaire_id, id=self.id)
+                db.session.add(question)
+                db.session.commit()
+                
     
     def set_questionnaire_id(self, id):
         self.questionnaire_id = id
