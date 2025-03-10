@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Float, Integer, Text, Date, Boolean, Time, extract, func, between
+from sqlalchemy import Column, DateTime, Float, Integer, Text, Date, Boolean, Time, UniqueConstraint, extract, func, between
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.schema import ForeignKey
 from .app import db
@@ -69,15 +69,32 @@ class Question(db.Model):
 
     __tablename__ = "question"
 
-    id = db.Column(db.Integer, primary_key = True)
+    id = db.Column(db.Integer, nullable=False)
+    questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'), nullable=False)
     title = db.Column(db.String(120))
     questionType = db.Column(db.String(120))
-    questionnaire_id = db.Column(db.Integer, db.ForeignKey('questionnaire.id'), primary_key = True)
+
+    __table_args__ = (
+        db.PrimaryKeyConstraint('id', 'questionnaire_id'),  # Définition de la clé primaire composite
+    )
+    
+
     questionnaire = db.relationship("Questionnaire", backref=db.backref("questions", lazy="dynamic"))
 
-    def __init__(self, title, questionType, questionnaire_id):
+    #__table_args__ = (UniqueConstraint('id', 'questionnaire_id', name='uq_question_id_questionnaire'),)  # Ajout contrainte unique
+
+    __mapper_args__ = {
+        "polymorphic_identity": "question",
+        "with_polymorphic": "*",
+        "polymorphic_on": questionType,
+    }
+
+    def __init__(self, title, questionType, questionnaire_id, id=None):
         self.questionnaire_id = questionnaire_id
-        self.id = get_next_id_Question(self.questionnaire_id)
+        if id:
+            self.id = id
+        else:
+            self.id = get_next_id_Question(self.questionnaire_id)
         self.title = title
         self.questionType = questionType
         
@@ -94,35 +111,61 @@ class Question(db.Model):
     def set_title(self, title):
         self.title = title
 
-    def set_type(self, type):
-        self.questionType = type
+    def set_type(self, new_type):
+        if new_type not in ["multiple", "simple"] or new_type == self.questionType:
+            return self
+
+        # Suppression sécurisée de l'ancienne instance
+        db.session.delete(self)
+        db.session.commit()
+
+        # Création de la nouvelle instance avec le même ID et questionnaire_id
+        if new_type == "simple":
+            new_question = QuestionSimple(self.title, new_type, self.questionnaire_id, id=self.id)
+        else:
+            new_question = QuestionMultiple(self.title, new_type, self.questionnaire_id, id=self.id)
+
+        db.session.add(new_question)
+        db.session.commit()
+
+        return new_question
     
     def set_questionnaire_id(self, id):
         self.questionnaire_id = id
 
-    __mapper_args__ = {
-        "polymorphic_identity": "question",
-        "with_polymorphic": "*",
-        "polymorphic_on": questionType,
-    }
+    
 
 class QuestionSimple(Question):
-    id = db.Column(db.Integer, db.ForeignKey('question.id'), primary_key = True)
-    def __init__(self, title, questionType, questionnaire_id):
-        super().__init__(title, questionType, questionnaire_id)
+    __tablename__ = "question_simple"
+
+    id = db.Column(db.Integer, db.ForeignKey('question.id'))
+    questionnaire_id = db.Column(db.Integer, db.ForeignKey('question.questionnaire_id'))
+
+    __table_args__ = (
+        db.PrimaryKeyConstraint('id', 'questionnaire_id'),  # Définition de la clé primaire composite
+    )
+    def __init__(self, title, questionType, questionnaire_id, id=None):
+        super().__init__(title, questionType, questionnaire_id, id=id)
     
     __mapper_args__ = {
         "polymorphic_identity": "simple",
+        "inherit_condition": (Question.id == id) & (Question.questionnaire_id == questionnaire_id)  # Condition d'héritage
      
     }
 
 class QuestionMultiple(Question):
-    id = db.Column(db.Integer, db.ForeignKey('question.id'), primary_key = True)
-    def __init__(self, title, questionType, questionnaire_id):
-        super().__init__(title, questionType, questionnaire_id)
+    id = db.Column(db.Integer, db.ForeignKey('question.id'))
+    questionnaire_id = db.Column(db.Integer, db.ForeignKey('question.questionnaire_id'))
+
+    __table_args__ = (
+        db.PrimaryKeyConstraint('id', 'questionnaire_id'),  # Définition de la clé primaire composite
+    )
+    def __init__(self, title, questionType, questionnaire_id, id=None):
+        super().__init__(title, questionType, questionnaire_id, id=id)
 
     __mapper_args__ = {
         "polymorphic_identity": "multiple",
+        "inherit_condition": (Question.id == id) & (Question.questionnaire_id == questionnaire_id)  # Condition d'héritage
     }
 
 
