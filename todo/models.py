@@ -81,6 +81,7 @@ class Question(db.Model):
 
     questionnaire = db.relationship("Questionnaire", backref=db.backref("questions", lazy="dynamic"))
 
+
     #__table_args__ = (UniqueConstraint('id', 'questionnaire_id', name='uq_question_id_questionnaire'),)  # Ajout contrainte unique
 
     __mapper_args__ = {
@@ -88,6 +89,7 @@ class Question(db.Model):
         "with_polymorphic": "*",
         "polymorphic_on": questionType,
     }
+
 
     def __init__(self, title, questionType, questionnaire_id, id=None):
         self.questionnaire_id = questionnaire_id
@@ -111,6 +113,7 @@ class Question(db.Model):
     def set_title(self, title):
         self.title = title
 
+
     def set_type(self, new_type):
         if new_type not in ["multiple", "simple"] or new_type == self.questionType:
             return self
@@ -129,6 +132,7 @@ class Question(db.Model):
         db.session.commit()
 
         return new_question
+
     
     def set_questionnaire_id(self, id):
         self.questionnaire_id = id
